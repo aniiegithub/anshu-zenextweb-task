@@ -2,33 +2,37 @@ const path = require('path');
 const fs = require('fs');
 const { generatePdf } = require('../utils/pdfGenerator');
 
-// Dummy in-memory store for demo
+// Dummy in-memory store for demo; replace with DB in production
 const reportStore = {};
 
 exports.createReport = async (req) => {
   try {
-    // Parse JSON data sent in 'data' field of multipart/form-data
-    const data = JSON.parse(req.body.data || '{}');
+    // Instead of parsing JSON from req.body.data, use req.body directly:
+    // multer automatically parses multipart/form-data fields into req.body as strings
+    const data = { ...req.body };
+
+    // Assign an _id (you can use a better ID generation method or DB-generated IDs)
+    data._id = Date.now().toString();
+
+    // Image path (relative to your server folder)
     const imagePath = req.file?.path;
 
-    data._id = Date.now().toString(); // Generate dummy ID
-
-    // generatePdf creates the PDF and returns the file path
+    // Call PDF generator with full data and image path
     const pdfPath = await generatePdf(data, imagePath);
 
     if (!pdfPath || !fs.existsSync(pdfPath)) {
       throw new Error('PDF generation failed');
     }
 
-    const pdfFileName = path.basename(pdfPath);
-data.pdfUrl = `/api/reports/${data._id}/pdf`;  // the route to serve PDF
-data.pdfPath = pdfPath;
+    // Save PDF URL for frontend to access PDF via backend route
+    data.pdfUrl = `/api/reports/${data._id}/pdf`;
+    data.pdfPath = pdfPath;
 
-
-    // Store report in memory (replace with DB in production)
+    // Store the full report in memory for retrieval (replace with DB in prod)
     reportStore[data._id] = data;
 
-    return data; // Return the report data back to route
+    // Return full report including PDF url
+    return data;
   } catch (err) {
     console.error('Error in createReport:', err);
     throw err;
@@ -50,7 +54,7 @@ exports.getReportPdf = async (req, res) => {
 
   console.log('Sending PDF file:', filePath);
 
-  res.sendFile(path.resolve(filePath), err => {
+  res.sendFile(path.resolve(filePath), (err) => {
     if (err) {
       console.error('Error sending PDF:', err);
       if (!res.headersSent) {

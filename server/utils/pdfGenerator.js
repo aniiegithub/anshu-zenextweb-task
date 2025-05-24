@@ -8,12 +8,16 @@ exports.generatePdf = async (data, imagePath) => {
   console.log('Generating PDF with data:', data);
   console.log('Image path:', imagePath);
 
+  // Ensure uploads directory exists
   const uploadsDir = path.join(__dirname, '..', 'uploads');
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir);
   }
 
-  const safeName = (data.fullName || 'Unknown').split(' ')[0].replace(/[^a-zA-Z0-9]/g, '');
+  // Safe file name
+  const safeName = (data.fullName || 'Unknown')
+    .split(' ')[0]
+    .replace(/[^a-zA-Z0-9]/g, '');
   const pdfName = `${safeName}_Medical_Report.pdf`;
   const filePath = path.join(uploadsDir, pdfName);
 
@@ -21,7 +25,7 @@ exports.generatePdf = async (data, imagePath) => {
   const stream = fs.createWriteStream(filePath);
   doc.pipe(stream);
 
-  // Watermark
+  // Watermark (optional)
   const watermarkPath = path.join(__dirname, '..', 'assets', 'watermark.png');
   if (fs.existsSync(watermarkPath)) {
     doc.image(watermarkPath, 130, 200, { width: 300, opacity: 0.1 });
@@ -31,7 +35,7 @@ exports.generatePdf = async (data, imagePath) => {
   doc.fontSize(22).fillColor('black').font('Helvetica-Bold').text('Health Plus+', { align: 'left' });
   doc.fontSize(14).text('Diagnostic Centre', { align: 'left' });
 
-  // Top-right Metadata
+  // Metadata (Top-right)
   doc.fontSize(10).font('Helvetica');
   doc.text(`LAB SR NO: ${data.labSrNo || '1234'}`, 420, 40);
   doc.text(`COUNTRY: ${data.country || 'India'}`, 420, 55);
@@ -85,9 +89,10 @@ exports.generatePdf = async (data, imagePath) => {
   };
   await doc.table(laboratoryTable, { width: 500 });
 
-  // QR Code
+  // QR Code to download PDF
   const serverBaseUrl = process.env.SERVER_BASE_URL || 'http://localhost:5000';
   const qrCodeURL = `${serverBaseUrl}/api/reports/${data._id}/pdf`;
+
   try {
     const qrImage = await QRCode.toDataURL(qrCodeURL);
     const qrBuffer = Buffer.from(qrImage.split(',')[1], 'base64');
@@ -96,7 +101,7 @@ exports.generatePdf = async (data, imagePath) => {
     console.error('QR code generation failed:', qrErr);
   }
 
-  // Fit Status
+  // FIT / UNFIT status
   const statusColor = data.fitStatus === 'FIT' ? 'green' : 'red';
   doc.fontSize(25).fillColor(statusColor).font('Helvetica-Bold').text(data.fitStatus || 'UNKNOWN', 200, 710, { align: 'center' });
 
@@ -106,6 +111,7 @@ exports.generatePdf = async (data, imagePath) => {
     doc.image(signaturePath, 400, 700, { width: 100 });
   }
 
+  // Finalize PDF
   console.log('Finished writing content to PDF');
   doc.end();
 
