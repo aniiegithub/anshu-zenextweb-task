@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const reportRoutes = require('./routes/reportRoutes');
 const path = require('path');
+const pdf = require("./routes/pdf.js");
 
 dotenv.config();
 
@@ -18,6 +19,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/reports', reportRoutes);
+const pdfRoute = require('./routes/pdf');
+app.use('/api', pdfRoute);
+
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
